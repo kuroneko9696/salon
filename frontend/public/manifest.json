@@ -1,0 +1,11 @@
+{
+  "name": "展示会用名刺管理アプリ",
+  "short_name": "名刺管理",
+  "description": "展示会での名刺交換と商談情報を効率的に管理・共有するWebアプリケーション",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f172a",
+  "orientation": "portrait",
+  "icons": []
+}
