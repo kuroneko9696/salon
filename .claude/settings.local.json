@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/kuroiwa.tsukasa/AppData/Roaming/Claude/**)",
+      "Bash(claude doctor)",
+      "Bash(npm start)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker-compose:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(powershell -Command \"Start-Process ''C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe''\")",
+      "Bash(timeout /t 30 /nobreak)",
+      "Bash(docker info:*)",
+      "Bash(powershell -Command \"Stop-Process -Id 16740 -Force\")",
+      "Bash(powershell -Command \"Get-Process ''Docker Desktop'' -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep -Seconds 3; Start-Process ''C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe''\")",
+      "Bash(docker stop:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
