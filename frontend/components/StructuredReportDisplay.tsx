@@ -29,7 +29,7 @@ function parseMarkdownReport(markdown: string): ReportSection[] {
     // 見出し検出 (## または ###)
     if (line.match(/^##\s+(.+)/)) {
       // 前のセクションを保存
-      if (currentSection) {
+      if (currentSection !== null) {
         currentSection.content = currentContent.join('\n').trim();
         if (listItems.length > 0) {
           currentSection.items = listItems;
@@ -61,7 +61,7 @@ function parseMarkdownReport(markdown: string): ReportSection[] {
   });
 
   // 最後のセクションを保存
-  if (currentSection) {
+  if (currentSection !== null) {
     currentSection.content = currentContent.join('\n').trim();
     if (listItems.length > 0) {
       currentSection.items = listItems;
