@@ -15,64 +15,57 @@ interface StructuredReportDisplayProps {
   reportText: string;
 }
 
-// マークダウンテキストをパースして構造化データに変換
+// Markdownライクなテキストを簡易にパースして構造化
 function parseMarkdownReport(markdown: string): ReportSection[] {
   const sections: ReportSection[] = [];
   const lines = markdown.split('\n');
 
   let currentSection: ReportSection | null = null;
   let currentContent: string[] = [];
-  let inList = false;
   let listItems: string[] = [];
+  let inList = false;
 
-  lines.forEach((line, index) => {
-    // 見出し検出 (## または ###)
-    if (line.match(/^##\s+(.+)/)) {
-      // 前のセクションを保存
-      if (currentSection !== null) {
-        currentSection.content = currentContent.join('\n').trim();
-        if (listItems.length > 0) {
-          currentSection.items = listItems;
-        }
-        sections.push(currentSection);
-      }
+  const flushSection = () => {
+    if (!currentSection) return;
+    currentSection.content = currentContent.join('\n').trim();
+    if (listItems.length > 0) currentSection.items = listItems;
+    sections.push(currentSection);
+  };
 
-      // 新しいセクション開始
-      const title = line.replace(/^##\s+/, '').replace(/^###\s+/, '').trim();
+  for (const line of lines) {
+    // 見出し (## / ###)
+    if (/^###?\s+/.test(line)) {
+      flushSection();
+      const title = line.replace(/^###?\s+/, '').trim();
       currentSection = { title, content: '' };
       currentContent = [];
       listItems = [];
       inList = false;
+      continue;
     }
-    // リスト項目検出
-    else if (line.match(/^[\-\*]\s+(.+)/) || line.match(/^\d+\.\s+(.+)/)) {
+
+    // リスト項目 (-, *, 1.)
+    if (/^[\-\*]\s+/.test(line) || /^\d+\.\s+/.test(line)) {
       const itemText = line.replace(/^[\-\*]\s+/, '').replace(/^\d+\.\s+/, '').trim();
       listItems.push(itemText);
       inList = true;
+      continue;
     }
+
     // 通常のテキスト
-    else if (line.trim() && currentSection) {
-      if (inList && listItems.length > 0) {
-        // リスト終了、コンテンツに追加
-        inList = false;
-      }
+    if (line.trim() && currentSection) {
+      if (inList && listItems.length > 0) inList = false;
       currentContent.push(line);
     }
-  });
-
-  // 最後のセクションを保存
-  if (currentSection !== null) {
-    currentSection.content = currentContent.join('\n').trim();
-    if (listItems.length > 0) {
-      currentSection.items = listItems;
-    }
-    sections.push(currentSection);
   }
+
+  // 最後のセクションを確定
+  flushSection();
 
   return sections;
 }
 
-// テーブル形式で表示するコンポーネント
+// セクションをテーブル/カードで表示
 const SectionTable: React.FC<{ section: ReportSection }> = ({ section }) => {
   if (!section.items || section.items.length === 0) {
     return (
@@ -101,7 +94,7 @@ const SectionTable: React.FC<{ section: ReportSection }> = ({ section }) => {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12 text-xs md:text-sm">No.</TableHead>
-                <TableHead className="text-xs md:text-sm">内容</TableHead>
+                <TableHead className="text-xs md:text-sm">項目</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -119,7 +112,6 @@ const SectionTable: React.FC<{ section: ReportSection }> = ({ section }) => {
   );
 };
 
-// メインコンポーネント
 export const StructuredReportDisplay: React.FC<StructuredReportDisplayProps> = ({ reportText }) => {
   const sections = parseMarkdownReport(reportText);
 
@@ -140,7 +132,6 @@ export const StructuredReportDisplay: React.FC<StructuredReportDisplayProps> = (
   );
 };
 
-// 検索クエリ表示コンポーネント
 export const SearchQueriesList: React.FC<{ queries: string[] }> = ({ queries }) => {
   return (
     <div className="flex flex-wrap gap-2">
@@ -153,7 +144,6 @@ export const SearchQueriesList: React.FC<{ queries: string[] }> = ({ queries }) 
   );
 };
 
-// ソース表示コンポーネント
 export const SourcesList: React.FC<{
   sources: Array<{ url: string; title?: string; snippet?: string }>
 }> = ({ sources }) => {
@@ -196,3 +186,4 @@ export const SourcesList: React.FC<{
     </div>
   );
 };
+
