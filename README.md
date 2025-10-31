@@ -252,7 +252,7 @@ uvicorn main:app --reload  # 開発サーバー起動（ホットリロード有
    | Key | Value |
    |-----|-------|
    | `GEMINI_API_KEY` | あなたのGemini APIキー |
-   | `ALLOWED_ORIGINS` | フロントエンドのURL（カンマ区切り）<br>例: `https://your-frontend.vercel.app,http://localhost:3000` |
+   | `ALLOWED_ORIGINS` | フロントエンドのURL（カンマ区切り）<br>**重要**: 実際のフロントエンドURLを設定してください<br>例: `https://salon-tkru.vercel.app,http://localhost:3000` |
 
 4. **デプロイ**
    - "Create Web Service" をクリック

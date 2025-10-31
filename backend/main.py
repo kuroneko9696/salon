@@ -18,10 +18,16 @@ app = FastAPI(
 
 # CORS設定
 # 環境変数から許可するオリジンを取得（カンマ区切り）
-ALLOWED_ORIGINS = os.getenv(
+# 本番環境ではフロントエンドのURLを環境変数で指定してください
+# 例: ALLOWED_ORIGINS=https://salon-tkru.vercel.app,http://localhost:3000
+ALLOWED_ORIGINS_STR = os.getenv(
     "ALLOWED_ORIGINS",
     "http://localhost:3000,http://localhost:3001"
-).split(",")
+)
+ALLOWED_ORIGINS = [origin.strip() for origin in ALLOWED_ORIGINS_STR.split(",") if origin.strip()]
+
+# デバッグ用: 許可されているオリジンをログ出力
+print(f"CORS設定: 許可されているオリジン: {ALLOWED_ORIGINS}")
 
 app.add_middleware(
     CORSMiddleware,
