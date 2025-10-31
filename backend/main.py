@@ -272,41 +272,80 @@ async def deep_research(request: DeepResearchRequest):
 """
 
         # Google Search Groundingを使用（最新のSDK）
-        response = gemini_client.models.generate_content(
-            model='gemini-2.0-flash-exp',
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(google_search=types.GoogleSearch())],
-                temperature=0.7
+        # モデル名を確認: gemini-2.0-flash-exp または gemini-1.5-pro など
+        try:
+            # まずは gemini-1.5-pro を試す（Google Search Groundingをサポート）
+            response = gemini_client.models.generate_content(
+                model='gemini-1.5-pro',
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    tools=[types.Tool(google_search=types.GoogleSearch())],
+                    temperature=0.7
+                )
             )
-        )
+        except Exception as model_error:
+            # モデルが利用できない場合は、gemini-2.0-flash-expを試す
+            print(f"Warning: gemini-1.5-pro failed, trying gemini-2.0-flash-exp: {model_error}")
+            try:
+                response = gemini_client.models.generate_content(
+                    model='gemini-2.0-flash-exp',
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        tools=[types.Tool(google_search=types.GoogleSearch())],
+                        temperature=0.7
+                    )
+                )
+            except Exception as model_error2:
+                # それでも失敗する場合は、Google Searchなしで通常のモデルを使用
+                print(f"Warning: Google Search Grounding failed, using regular model: {model_error2}")
+                response = gemini_client.models.generate_content(
+                    model='gemini-1.5-pro',
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        temperature=0.7
+                    )
+                )
 
         # レスポンスから情報を抽出
-        report_text = response.text
+        if not response:
+            raise HTTPException(status_code=500, detail="APIレスポンスが空です")
+        
+        # レスポンステキストを取得
+        try:
+            report_text = response.text
+            if not report_text:
+                raise HTTPException(status_code=500, detail="レスポンステキストが空です")
+        except Exception as e:
+            print(f"Error extracting response text: {e}")
+            raise HTTPException(status_code=500, detail=f"レスポンステキストの取得に失敗しました: {str(e)}")
 
         # Grounding metadataから検索クエリとソースを抽出
         search_queries = []
         sources = []
 
         try:
-            if hasattr(response.candidates[0], 'grounding_metadata'):
-                grounding_metadata = response.candidates[0].grounding_metadata
+            if hasattr(response, 'candidates') and response.candidates and len(response.candidates) > 0:
+                candidate = response.candidates[0]
+                if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
+                    grounding_metadata = candidate.grounding_metadata
 
-                # 検索クエリを取得
-                if hasattr(grounding_metadata, 'web_search_queries'):
-                    search_queries = list(grounding_metadata.web_search_queries or [])
+                    # 検索クエリを取得
+                    if hasattr(grounding_metadata, 'web_search_queries') and grounding_metadata.web_search_queries:
+                        search_queries = list(grounding_metadata.web_search_queries)
 
-                # ソース情報を取得
-                if hasattr(grounding_metadata, 'grounding_chunks'):
-                    for chunk in grounding_metadata.grounding_chunks:
-                        if hasattr(chunk, 'web'):
-                            sources.append(SourceReference(
-                                title=chunk.web.title or "No title",
-                                url=chunk.web.uri or "",
-                                snippet=getattr(chunk.web, 'snippet', None)
-                            ))
+                    # ソース情報を取得
+                    if hasattr(grounding_metadata, 'grounding_chunks') and grounding_metadata.grounding_chunks:
+                        for chunk in grounding_metadata.grounding_chunks:
+                            if hasattr(chunk, 'web') and chunk.web:
+                                sources.append(SourceReference(
+                                    title=getattr(chunk.web, 'title', None) or "No title",
+                                    url=getattr(chunk.web, 'uri', None) or "",
+                                    snippet=getattr(chunk.web, 'snippet', None)
+                                ))
         except Exception as e:
             print(f"Warning: Failed to extract grounding metadata: {e}")
+            import traceback
+            traceback.print_exc()
 
         # レスポンステキストからURLを抽出（フォールバック）
         if not sources:

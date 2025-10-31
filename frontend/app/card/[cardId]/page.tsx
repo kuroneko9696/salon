@@ -66,7 +66,8 @@ export default function CardDetailPage({ params }: { params: Promise<{ cardId: s
 
     try {
       // バックエンドAPIを呼び出してDeepリサーチレポートを生成
-      const response = await fetch('http://localhost:8000/deep-research', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/deep-research`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
