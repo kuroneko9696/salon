@@ -67,34 +67,88 @@ export default function CardDetailPage({ params }: { params: Promise<{ cardId: s
     try {
       // バックエンドAPIを呼び出してDeepリサーチレポートを生成
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${apiUrl}/deep-research`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          company_name: card.company_name,
-          company_url: card.company_url,
-          address: card.address,
-          departments: card.departments,
-          demo_interests: meeting?.q1_demo,
-          customer_needs: meeting?.q2_needs,
-          heat_level: meeting?.q4_heat_level,
-          potential: meeting?.q5_potential,
-        }),
+      console.log('API URL:', apiUrl);
+      console.log('Request data:', {
+        company_name: card.company_name,
+        company_url: card.company_url,
+        address: card.address,
+        departments: card.departments,
+        demo_interests: meeting?.q1_demo,
+        customer_needs: meeting?.q2_needs,
+        heat_level: meeting?.q4_heat_level,
+        potential: meeting?.q5_potential,
       });
 
+      // Renderの無料プランではスリープ後に初回リクエストが遅くなる可能性があるため、タイムアウトを延長
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 180000); // 180秒（3分）
+
+      let response: Response;
+      try {
+        response = await fetch(`${apiUrl}/deep-research`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            company_name: card.company_name,
+            company_url: card.company_url,
+            address: card.address,
+            departments: card.departments,
+            demo_interests: meeting?.q1_demo,
+            customer_needs: meeting?.q2_needs,
+            heat_level: meeting?.q4_heat_level,
+            potential: meeting?.q5_potential,
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        throw fetchError;
+      }
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
-        throw new Error('API request failed');
+        // エラーレスポンスの詳細を取得
+        let errorMessage = `API request failed (${response.status})`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorData.message || errorMessage;
+          console.error('Error response:', errorData);
+        } catch (e) {
+          const errorText = await response.text();
+          console.error('Error response text:', errorText);
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
+      console.log('Success response:', data);
       setReport(data.report);
       setSources(data.sources || []);
       setSearchQueries(data.search_queries || []);
     } catch (error) {
       console.error('レポート生成に失敗しました:', error);
-      alert('レポート生成に失敗しました。もう一度お試しください。');
+      let errorMessage = '不明なエラーが発生しました';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        // AbortErrorの場合はタイムアウトメッセージに変更
+        if (error.name === 'AbortError') {
+          errorMessage = 'リクエストがタイムアウトしました。Renderの無料プランではスリープ後に初回リクエストが遅くなる可能性があります。しばらく待ってから再度お試しください。';
+        }
+        // NetworkErrorの場合はCORSエラーの可能性
+        if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+          errorMessage = 'CORSエラーまたはネットワークエラーが発生しました。バックエンドのALLOWED_ORIGINS設定を確認してください。';
+        }
+      }
+      
+      alert(`レポート生成に失敗しました。\n\nエラー詳細: ${errorMessage}\n\nコンソールで詳細を確認してください。`);
     } finally {
       setIsGeneratingReport(false);
     }

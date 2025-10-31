@@ -29,6 +29,7 @@
 ### インフラ
 - **Docker & Docker Compose**
 - **Vercel** (フロントエンドデプロイ先)
+- **Render** (バックエンドデプロイ先)
 
 ## セットアップ
 
@@ -215,45 +216,48 @@ uvicorn main:app --reload  # 開発サーバー起動（ホットリロード有
 ### 構成
 
 - **フロントエンド**: Vercel
-- **バックエンド**: Google Cloud Run
+- **バックエンド**: Render
 
-### 1. バックエンドのデプロイ (Google Cloud Run)
+### 1. バックエンドのデプロイ (Render)
 
 #### 前提条件
-- Google Cloud アカウント
-- gcloud CLI のインストール
-- プロジェクトの作成とCloud Run APIの有効化
+- Render アカウント (https://render.com)
+- GitHub リポジトリにコードがプッシュ済み
 
 #### デプロイ手順
 
-```bash
-# 1. Google Cloud にログイン
-gcloud auth login
+1. **Renderダッシュボードにアクセス**
+   - https://dashboard.render.com にログイン
+   - GitHubアカウントを連携（初回のみ）
 
-# 2. プロジェクトを設定
-gcloud config set project YOUR_PROJECT_ID
+2. **新しいWebサービスを作成**
+   - "New +" → "Web Service" を選択
+   - GitHubリポジトリを選択
+   - 以下の設定を入力：
 
-# 3. バックエンドディレクトリに移動
-cd backend
+   ```
+   Name: salon-backend
+   Region: Singapore (または最寄りのリージョン)
+   Branch: main
+   Root Directory: backend
+   Runtime: Python 3
+   Build Command: pip install -r requirements.txt
+   Start Command: uvicorn main:app --host 0.0.0.0 --port $PORT
+   ```
 
-# 4. Cloud Runにデプロイ
-gcloud run deploy salon-backend \
-  --source . \
-  --platform managed \
-  --region asia-northeast1 \
-  --allow-unauthenticated \
-  --set-env-vars GEMINI_API_KEY=YOUR_GEMINI_API_KEY \
-  --set-env-vars ALLOWED_ORIGINS=https://your-frontend.vercel.app
+3. **環境変数の設定**
 
-# デプロイ完了後、バックエンドURLが表示されます
-# 例: https://salon-backend-xxxxxxxxx-an.a.run.app
-```
+   Renderの環境変数設定で以下を追加：
 
-#### 環境変数の設定
+   | Key | Value |
+   |-----|-------|
+   | `GEMINI_API_KEY` | あなたのGemini APIキー |
+   | `ALLOWED_ORIGINS` | フロントエンドのURL（カンマ区切り）<br>例: `https://your-frontend.vercel.app,http://localhost:3000` |
 
-Cloud Runコンソールから以下を設定：
-- `GEMINI_API_KEY`: Gemini APIキー
-- `ALLOWED_ORIGINS`: フロントエンドのURL（カンマ区切りで複数指定可能）
+4. **デプロイ**
+   - "Create Web Service" をクリック
+   - デプロイが完了すると、バックエンドURLが表示されます
+   - 例: `https://salon-backend.onrender.com`
 
 ### 2. フロントエンドのデプロイ (Vercel)
 
@@ -276,20 +280,19 @@ Cloud Runコンソールから以下を設定：
    | Name | Value |
    |------|-------|
    | `GEMINI_API_KEY` | あなたのGemini APIキー |
-   | `NEXT_PUBLIC_API_URL` | Cloud RunのバックエンドURL<br>例: `https://salon-backend-xxx.a.run.app` |
+   | `NEXT_PUBLIC_API_URL` | RenderのバックエンドURL<br>例: `https://salon-backend.onrender.com` |
 
 4. **デプロイ**
    - "Deploy" ボタンをクリック
 
 5. **バックエンドのCORS設定を更新**
    
-   フロントエンドのデプロイが完了したら、Cloud RunのALLOWED_ORIGINS環境変数にVercelのURLを追加：
+   フロントエンドのデプロイが完了したら、Renderの環境変数 `ALLOWED_ORIGINS` にVercelのURLを追加：
    
-   ```bash
-   gcloud run services update salon-backend \
-     --region asia-northeast1 \
-     --set-env-vars ALLOWED_ORIGINS=https://your-frontend.vercel.app,http://localhost:3000
-   ```
+   - Renderダッシュボード → salon-backend → Environment
+   - `ALLOWED_ORIGINS` を編集して、VercelのURLを追加
+   - 例: `https://your-frontend.vercel.app,http://localhost:3000`
+   - 変更を保存すると自動的に再デプロイされます
 
 ### デプロイ後の確認
 
@@ -300,20 +303,19 @@ Cloud Runコンソールから以下を設定：
 ### トラブルシューティング
 
 #### CORS エラーが発生する場合
-- Cloud RunのALLOWED_ORIGINS環境変数にフロントエンドのURLが含まれているか確認
+- Renderの `ALLOWED_ORIGINS` 環境変数にフロントエンドのURLが含まれているか確認
 - URLの末尾に `/` がついていないか確認
+- Renderダッシュボードで環境変数が正しく設定されているか確認
 
 #### APIリクエストが失敗する場合
-- VercelのNEXT_PUBLIC_API_URLが正しく設定されているか確認
-- Cloud Runサービスが起動しているか確認: `gcloud run services list`
+- Vercelの `NEXT_PUBLIC_API_URL` が正しく設定されているか確認
+- Renderサービスが起動しているか確認: Renderダッシュボード → salon-backend → Logs
+- Renderの無料プランでは、スリープ後に初回リクエストが遅くなる可能性があります
 
 #### Deep Researchがタイムアウトする場合
-- Cloud Runのタイムアウト設定を延長:
-  ```bash
-  gcloud run services update salon-backend \
-    --region asia-northeast1 \
-    --timeout 300
-  ```
+- Renderの無料プランでは、リクエストタイムアウトが制限されています
+- 有料プランにアップグレードするか、リクエスト処理時間を最適化してください
+- Renderダッシュボードでログを確認してエラーの詳細を確認してください
 
 ## ライセンス
 
