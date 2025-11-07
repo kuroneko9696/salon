@@ -110,7 +110,10 @@ export interface VisitNote {
 }
 
 export interface VisitNoteDraft
-  extends Omit<VisitNote, 'visit_note_id' | 'created_at' | 'updated_at'> {
+  extends Omit<
+    VisitNote,
+    'visit_note_id' | 'created_at' | 'updated_at' | 'highlight'
+  > {
   highlight?: boolean;
 }
 
