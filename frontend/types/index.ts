@@ -81,7 +81,7 @@ export interface TargetCompany {
 }
 
 export interface TargetCompanyDraft
-  extends Omit<TargetCompany, 'target_company_id' | 'created_at' | 'updated_at'> {
+  extends Omit<TargetCompany, 'target_company_id' | 'created_at' | 'updated_at' | 'highlight' | 'highlight_tags'> {
   highlight?: boolean;
   highlight_tags?: string[];
 }
