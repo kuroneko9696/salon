@@ -549,7 +549,7 @@ export default function EventPreparationPage({
                         <Button
                           type="button"
                           variant="outline"
-                          size="xs"
+                          size="sm"
                           onClick={() => {
                             setTargetForm((prev) => ({
                               ...prev,
