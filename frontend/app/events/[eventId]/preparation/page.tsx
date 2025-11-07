@@ -186,7 +186,7 @@ export default function EventPreparationPage({
 
   const handleEventFieldUpdate = async (
     field: keyof Event,
-    value: string | null
+    value: string | string[] | null
   ) => {
     if (!eventId || !event) return;
     try {
