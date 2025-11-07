@@ -1,5 +1,213 @@
 // データベーススキーマに基づいた型定義
 
+export type ISODateString = string;
+
+export interface ScrapeResultItem {
+  text: string;
+  selector?: string;
+  href?: string;
+  url?: string;
+}
+
+export interface ScrapeResult {
+  parsed_at: ISODateString;
+  selectors: string[];
+  items: ScrapeResultItem[];
+  source_url?: string | null;
+  notes?: string | null;
+}
+
+// 展示会
+export interface Event {
+  event_id: string;
+  name: string;
+  start_date?: ISODateString | null;
+  end_date?: ISODateString | null;
+  location?: string | null;
+  description?: string | null;
+  event_website_url?: string | null;
+  scraped_data?: ScrapeResult | null;
+  highlight_tags: string[];
+  created_at: ISODateString;
+  updated_at: ISODateString;
+}
+
+export interface EventDraft
+  extends Omit<
+    Event,
+    'event_id' | 'highlight_tags' | 'created_at' | 'updated_at'
+  > {
+  highlight_tags?: string[];
+}
+
+// ブース
+export interface Booth {
+  booth_id: string;
+  event_id: string;
+  name: string;
+  booth_code?: string | null;
+  location?: string | null;
+  contact_persons: string[];
+  focus_products: string[];
+  highlight_tags: string[];
+  pre_research_status?: string | null;
+  memo?: string | null;
+  created_at: ISODateString;
+  updated_at: ISODateString;
+}
+
+export interface BoothDraft
+  extends Omit<Booth, 'booth_id' | 'created_at' | 'updated_at'> {}
+
+export type TargetPriority = 'high' | 'medium' | 'low';
+
+export interface TargetCompany {
+  target_company_id: string;
+  event_id: string;
+  name: string;
+  website_url?: string | null;
+  description?: string | null;
+  booth_code?: string | null;
+  priority?: TargetPriority | string | null;
+  highlight_tags: string[];
+  pre_research_status?: string | null;
+  research_summary?: string | null;
+  notes?: string | null;
+  scraped_context?: Record<string, unknown> | null;
+  ai_research?: string | null;
+  highlight: boolean;
+  created_at: ISODateString;
+  updated_at: ISODateString;
+}
+
+export interface TargetCompanyDraft
+  extends Omit<TargetCompany, 'target_company_id' | 'created_at' | 'updated_at'> {
+  highlight?: boolean;
+  highlight_tags?: string[];
+}
+
+export type NoteType =
+  | 'conversation'
+  | 'demo'
+  | 'material'
+  | 'question'
+  | 'followup'
+  | 'other';
+
+export interface VisitNote {
+  visit_note_id: string;
+  event_id: string;
+  target_company_id?: string | null;
+  title?: string | null;
+  note_type: NoteType;
+  content: string;
+  image_ids: string[];
+  keywords: string[];
+  highlight: boolean;
+  created_by?: string | null;
+  created_at: ISODateString;
+  updated_at: ISODateString;
+}
+
+export interface VisitNoteDraft
+  extends Omit<VisitNote, 'visit_note_id' | 'created_at' | 'updated_at'> {
+  highlight?: boolean;
+}
+
+export type KeywordStatus = 'open' | 'resolved';
+
+export interface KeywordNote {
+  keyword_note_id: string;
+  event_id: string;
+  target_company_id?: string | null;
+  keyword: string;
+  context?: string | null;
+  ai_suggestions: string[];
+  status: KeywordStatus;
+  created_at: ISODateString;
+  updated_at: ISODateString;
+}
+
+export interface KeywordNoteDraft
+  extends Omit<KeywordNote, 'keyword_note_id' | 'created_at' | 'updated_at'> {}
+
+export interface MaterialImage {
+  material_id: string;
+  event_id: string;
+  target_company_id?: string | null;
+  visit_note_id?: string | null;
+  image_id: string;
+  caption?: string | null;
+  tags: string[];
+  ocr_text?: string | null;
+  ai_summary?: string | null;
+  created_at: ISODateString;
+  updated_at: ISODateString;
+}
+
+export interface MaterialImageDraft
+  extends Omit<MaterialImage, 'material_id' | 'created_at' | 'updated_at'> {}
+
+export type TaskStatus = 'open' | 'in_progress' | 'completed';
+export type TaskPriority = 'high' | 'medium' | 'low';
+
+export interface Task {
+  task_id: string;
+  event_id: string;
+  title: string;
+  description?: string | null;
+  status: TaskStatus;
+  due_date?: ISODateString | null;
+  target_company_id?: string | null;
+  visit_note_id?: string | null;
+  source?: string | null;
+  priority?: TaskPriority | string | null;
+  created_at: ISODateString;
+  updated_at: ISODateString;
+}
+
+export interface TaskDraft
+  extends Omit<
+    Task,
+    'task_id' | 'created_at' | 'updated_at' | 'status' | 'priority'
+  > {
+  status?: TaskStatus;
+  priority?: TaskPriority | string | null;
+}
+
+export interface EventReport {
+  report_id: string;
+  event_id: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  content?: string | null;
+  metadata?: Record<string, unknown> | null;
+  created_at: ISODateString;
+  updated_at: ISODateString;
+}
+
+export interface UploadedImage {
+  image_id: string;
+  filename: string;
+  media_type: string;
+  content_base64: string;
+  metadata: Record<string, unknown>;
+  created_at: ISODateString;
+}
+
+export interface BusinessCardLinkage {
+  event_id?: string | null;
+  booth_id?: string | null;
+  visit_notes?: string | null;
+  highlight?: boolean;
+}
+
+export interface MeetingVisitContext {
+  event_id?: string | null;
+  booth_id?: string | null;
+  booth_visit_memo?: string | null;
+  followup_tasks?: string[];
+}
+
 // ユーザー
 export interface User {
   user_id: string;
@@ -21,6 +229,10 @@ export interface BusinessCard {
   email?: string;
   company_url?: string;
   address?: string;
+  event_id?: string | null;
+  booth_id?: string | null;
+  highlight?: boolean;
+  visit_notes?: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -41,6 +253,8 @@ export interface CardScanResult {
 export interface Meeting {
   meeting_id: string;
   card_id: string;
+  event_id?: string | null;
+  booth_id?: string | null;
   q1_demo: string[] | null; // 複数選択
   q2_needs: string[] | null; // 複数選択
   q3_background: string; // 単一選択 A/B/C/D
@@ -49,10 +263,12 @@ export interface Meeting {
   q5_potential: '高' | '中' | '低' | '不明'; // 単一選択
   q6_timeframe?: 'すぐにでも' | '半年以内' | '1年以内' | '未定'; // Q5が「高」の場合のみ
   q7_next_action: string; // 単一選択
-  q7_action_date?: Date; // 「アポ設定済み」の場合の日付
+  q7_action_date?: ISODateString | null; // 「アポ設定済み」の場合の日付
   memo?: string; // 特記事項・会話メモ
-  created_at: Date;
-  updated_at: Date;
+  booth_visit_memo?: string | null;
+  followup_tasks?: string[];
+  created_at: ISODateString;
+  updated_at: ISODateString;
 }
 
 // Deepリサーチレポート
@@ -116,3 +332,27 @@ export const NEXT_ACTION_OPTIONS = [
   { value: 'PoC提案', label: 'PoC (概念実証) の提案' },
   { value: '御礼メールのみ', label: '御礼メールのみ' },
 ] as const;
+
+export const NOTE_TYPE_OPTIONS: { value: NoteType; label: string }[] = [
+  { value: 'conversation', label: '会話メモ' },
+  { value: 'demo', label: 'デモ体験' },
+  { value: 'material', label: '資料メモ' },
+  { value: 'question', label: '疑問点' },
+  { value: 'followup', label: 'フォローアップ' },
+  { value: 'other', label: 'その他' },
+];
+
+export const TASK_STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
+  { value: 'open', label: '未着手' },
+  { value: 'in_progress', label: '進行中' },
+  { value: 'completed', label: '完了' },
+];
+
+export const TASK_PRIORITY_OPTIONS: {
+  value: TaskPriority;
+  label: string;
+}[] = [
+  { value: 'high', label: '高' },
+  { value: 'medium', label: '中' },
+  { value: 'low', label: '低' },
+];

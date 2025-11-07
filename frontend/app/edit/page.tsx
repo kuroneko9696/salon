@@ -6,8 +6,10 @@ import { ArrowLeft, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import { useCardRegistrationStore, useUserStore, useDataStore } from '@/lib/store';
-import type { BusinessCard } from '@/types';
+import type { BusinessCard, Booth } from '@/types';
 
 export default function EditPage() {
   const router = useRouter();
@@ -16,6 +18,8 @@ export default function EditPage() {
   const scanResult = useCardRegistrationStore((state) => state.scanResult);
   const setCurrentStep = useCardRegistrationStore((state) => state.setCurrentStep);
   const addBusinessCard = useDataStore((state) => state.addBusinessCard);
+  const events = useDataStore((state) => state.events);
+  const getBoothsByEvent = useDataStore((state) => state.getBoothsByEvent);
 
   const [formData, setFormData] = useState({
     company_name: '',
@@ -27,6 +31,11 @@ export default function EditPage() {
     company_url: '',
     address: '',
   });
+  const [selectedEventId, setSelectedEventId] = useState<string>('');
+  const [selectedBoothId, setSelectedBoothId] = useState<string>('');
+  const [availableBooths, setAvailableBooths] = useState<Booth[]>([]);
+  const [visitNotes, setVisitNotes] = useState('');
+  const [highlight, setHighlight] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -70,6 +79,27 @@ export default function EditPage() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  useEffect(() => {
+    if (!selectedEventId) {
+      setAvailableBooths([]);
+      setSelectedBoothId('');
+      return;
+    }
+
+    try {
+      const booths = getBoothsByEvent(selectedEventId);
+      setAvailableBooths(booths);
+
+      if (booths.every((booth) => booth.booth_id !== selectedBoothId)) {
+        setSelectedBoothId('');
+      }
+    } catch (error) {
+      console.error('ブース一覧の取得に失敗しました:', error);
+      setAvailableBooths([]);
+      setSelectedBoothId('');
+    }
+  }, [selectedEventId, selectedBoothId, getBoothsByEvent]);
+
   const handleSave = () => {
     if (!user || !capturedImage) return;
 
@@ -88,6 +118,10 @@ export default function EditPage() {
       email: formData.email || undefined,
       company_url: formData.company_url || undefined,
       address: formData.address || undefined,
+      event_id: selectedEventId || null,
+      booth_id: selectedBoothId || null,
+      highlight,
+      visit_notes: visitNotes || null,
       created_at: new Date(),
       updated_at: new Date(),
     };
@@ -140,6 +174,63 @@ export default function EditPage() {
 
         {/* フォーム */}
         <div className="space-y-4">
+          <div>
+            <Label htmlFor="event_id" className="flex items-center justify-between">
+              <span>参加イベント</span>
+              <Button
+                type="button"
+                variant="link"
+                className="px-0 h-auto text-xs"
+                onClick={() => router.push('/events')}
+              >
+                イベント管理へ
+              </Button>
+            </Label>
+            <select
+              id="event_id"
+              value={selectedEventId}
+              onChange={(e) => setSelectedEventId(e.target.value)}
+              className="w-full mt-2 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <option value="">未選択</option>
+              {events.map((event) => (
+                <option key={event.event_id} value={event.event_id}>
+                  {event.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <Label htmlFor="booth_id" className="flex items-center justify-between">
+              <span>訪問予定ブース</span>
+              <Button
+                type="button"
+                variant="link"
+                className="px-0 h-auto text-xs"
+                onClick={() => router.push('/booths')}
+              >
+                ブース管理へ
+              </Button>
+            </Label>
+            <select
+              id="booth_id"
+              value={selectedBoothId}
+              onChange={(e) => setSelectedBoothId(e.target.value)}
+              disabled={!selectedEventId}
+              className="w-full mt-2 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60"
+            >
+              <option value="">
+                {selectedEventId ? '未選択' : 'イベントを先に選択してください'}
+              </option>
+              {availableBooths.map((booth) => (
+                <option key={booth.booth_id} value={booth.booth_id}>
+                  {booth.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div>
             <Label htmlFor="company_name">会社名 *</Label>
             <Input
@@ -220,6 +311,27 @@ export default function EditPage() {
               onChange={(e) => handleChange('address', e.target.value)}
               placeholder="東京都千代田区..."
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="visit_notes">訪問メモ</Label>
+            <Textarea
+              id="visit_notes"
+              value={visitNotes}
+              onChange={(e) => setVisitNotes(e.target.value)}
+              placeholder="ブースで確認したいこと、担当者メモなど"
+            />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="highlight"
+              checked={highlight}
+              onCheckedChange={(value) => setHighlight(Boolean(value))}
+            />
+            <Label htmlFor="highlight" className="text-sm">
+              ハイライトとしてピン留め
+            </Label>
           </div>
         </div>
       </main>

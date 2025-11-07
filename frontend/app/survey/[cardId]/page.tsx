@@ -19,6 +19,8 @@ import {
   TIMEFRAME_OPTIONS,
   NEXT_ACTION_OPTIONS,
   type Meeting,
+  type Booth,
+  type BusinessCard,
 } from '@/types';
 
 export default function SurveyPage({ params }: { params: Promise<{ cardId: string }> }) {
@@ -26,8 +28,10 @@ export default function SurveyPage({ params }: { params: Promise<{ cardId: strin
   const user = useUserStore((state) => state.user);
   const businessCards = useDataStore((state) => state.businessCards);
   const addMeeting = useDataStore((state) => state.addMeeting);
+  const events = useDataStore((state) => state.events);
+  const getBoothsByEvent = useDataStore((state) => state.getBoothsByEvent);
 
-  const [card, setCard] = useState<any>(null);
+  const [card, setCard] = useState<BusinessCard | null>(null);
   const [cardId, setCardId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     q1_demo: [] as string[],
@@ -43,6 +47,11 @@ export default function SurveyPage({ params }: { params: Promise<{ cardId: strin
     q7_action_date: '',
     memo: '',
   });
+  const [selectedEventId, setSelectedEventId] = useState<string>('');
+  const [selectedBoothId, setSelectedBoothId] = useState<string>('');
+  const [availableBooths, setAvailableBooths] = useState<Booth[]>([]);
+  const [boothVisitMemo, setBoothVisitMemo] = useState('');
+  const [followupTasksInput, setFollowupTasksInput] = useState('');
 
   useEffect(() => {
     const loadParams = async () => {
@@ -67,7 +76,30 @@ export default function SurveyPage({ params }: { params: Promise<{ cardId: strin
     }
 
     setCard(foundCard);
+    setSelectedEventId(foundCard.event_id ?? '');
+    setSelectedBoothId(foundCard.booth_id ?? '');
+    setBoothVisitMemo(foundCard.visit_notes ?? '');
   }, [user, cardId, businessCards, router]);
+
+  useEffect(() => {
+    if (!selectedEventId) {
+      setAvailableBooths([]);
+      setSelectedBoothId('');
+      return;
+    }
+
+    try {
+      const booths = getBoothsByEvent(selectedEventId);
+      setAvailableBooths(booths);
+      if (booths.every((booth) => booth.booth_id !== selectedBoothId)) {
+        setSelectedBoothId('');
+      }
+    } catch (error) {
+      console.error('ブース情報の取得に失敗しました:', error);
+      setAvailableBooths([]);
+      setSelectedBoothId('');
+    }
+  }, [selectedEventId, selectedBoothId, getBoothsByEvent]);
 
   const handleCheckboxChange = (field: 'q1_demo' | 'q2_needs', value: string) => {
     setFormData((prev) => {
@@ -107,9 +139,18 @@ export default function SurveyPage({ params }: { params: Promise<{ cardId: strin
       q2Final.push(`その他: ${formData.q2_needs_other}`);
     }
 
+    const followupTasks = followupTasksInput
+      .split('\n')
+      .map((task) => task.trim())
+      .filter(Boolean);
+
+    const nowIso = new Date().toISOString();
+
     const meeting: Meeting = {
       meeting_id: crypto.randomUUID(),
       card_id: card.card_id,
+      event_id: selectedEventId || null,
+      booth_id: selectedBoothId || null,
       q1_demo: q1Final.length > 0 ? q1Final : null,
       q2_needs: q2Final.length > 0 ? q2Final : null,
       q3_background: formData.q3_background,
@@ -119,10 +160,14 @@ export default function SurveyPage({ params }: { params: Promise<{ cardId: strin
       q6_timeframe:
         formData.q6_timeframe as 'すぐにでも' | '半年以内' | '1年以内' | '未定' | undefined,
       q7_next_action: formData.q7_next_action,
-      q7_action_date: formData.q7_action_date ? new Date(formData.q7_action_date) : undefined,
+      q7_action_date: formData.q7_action_date
+        ? new Date(formData.q7_action_date).toISOString()
+        : null,
       memo: formData.memo || undefined,
-      created_at: new Date(),
-      updated_at: new Date(),
+      booth_visit_memo: boothVisitMemo || null,
+      followup_tasks: followupTasks.length > 0 ? followupTasks : undefined,
+      created_at: nowIso,
+      updated_at: nowIso,
     };
 
     addMeeting(meeting);
@@ -170,6 +215,80 @@ export default function SurveyPage({ params }: { params: Promise<{ cardId: strin
         <div className="space-y-8">
           {/* Q1: 最も関心を示した技術デモ */}
           <div className="bg-white rounded-lg border p-6">
+          <Label className="text-base font-semibold mb-4 block">展示会コンテキスト</Label>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label htmlFor="event_id" className="flex items-center justify-between">
+                <span>参加イベント</span>
+                <Button
+                  type="button"
+                  variant="link"
+                  className="px-0 h-auto text-xs"
+                  onClick={() => router.push('/events')}
+                >
+                  管理ページへ
+                </Button>
+              </Label>
+              <select
+                id="event_id"
+                value={selectedEventId}
+                onChange={(e) => setSelectedEventId(e.target.value)}
+                className="w-full mt-2 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="">未選択</option>
+                {events.map((event) => (
+                  <option key={event.event_id} value={event.event_id}>
+                    {event.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="booth_id">訪問ブース</Label>
+              <select
+                id="booth_id"
+                value={selectedBoothId}
+                onChange={(e) => setSelectedBoothId(e.target.value)}
+                disabled={!selectedEventId}
+                className="w-full mt-2 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60"
+              >
+                <option value="">
+                  {selectedEventId ? '未選択' : 'イベントを選択してください'}
+                </option>
+                {availableBooths.map((booth) => (
+                  <option key={booth.booth_id} value={booth.booth_id}>
+                    {booth.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <Label htmlFor="boothMemo">ブース訪問メモ</Label>
+              <Textarea
+                id="boothMemo"
+                value={boothVisitMemo}
+                onChange={(e) => setBoothVisitMemo(e.target.value)}
+                placeholder="展示内容や担当者のコメントなどを記録"
+                rows={3}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Label htmlFor="followupTasks">フォローアップタスク候補 (1行1タスク)</Label>
+              <Textarea
+                id="followupTasks"
+                value={followupTasksInput}
+                onChange={(e) => setFollowupTasksInput(e.target.value)}
+                placeholder={`例:\n・翌週中に提案資料を送付\n・PoCの要件確認ミーティングを調整`}
+                rows={3}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg border p-6">
             <Label className="text-base font-semibold mb-4 block">
               Q1. 最も関心を示した技術デモ (複数選択可)
             </Label>

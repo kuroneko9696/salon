@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Edit, Sparkles, Loader2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Edit, Sparkles, Loader2, Trash2, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { useUserStore, useDataStore } from '@/lib/store';
 import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import { StructuredReportDisplay, SearchQueriesList, SourcesList } from '@/components/StructuredReportDisplay';
@@ -16,6 +17,8 @@ export default function CardDetailPage({ params }: { params: Promise<{ cardId: s
   const businessCards = useDataStore((state) => state.businessCards);
   const getMeetingByCardId = useDataStore((state) => state.getMeetingByCardId);
   const deleteBusinessCard = useDataStore((state) => state.deleteBusinessCard);
+  const events = useDataStore((state) => state.events);
+  const booths = useDataStore((state) => state.booths);
 
   const [card, setCard] = useState<any>(null);
   const [cardId, setCardId] = useState<string | null>(null);
@@ -158,6 +161,13 @@ export default function CardDetailPage({ params }: { params: Promise<{ cardId: s
     return null;
   }
 
+  const linkedEvent = card.event_id
+    ? events.find((event) => event.event_id === card.event_id)
+    : null;
+  const linkedBooth = card.booth_id
+    ? booths.find((booth) => booth.booth_id === card.booth_id)
+    : null;
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* ヘッダー */}
@@ -261,6 +271,46 @@ export default function CardDetailPage({ params }: { params: Promise<{ cardId: s
                     <p className="text-base">{card.address}</p>
                   </div>
                 )}
+                {(card.event_id || card.booth_id || card.visit_notes || card.highlight) && (
+                  <div className="pt-2 border-t">
+                    <p className="text-sm font-semibold text-muted-foreground mb-2">
+                      展示会コンテキスト
+                    </p>
+                    <div className="space-y-2">
+                      {card.highlight && (
+                        <Badge variant="secondary" className="mr-2">
+                          ハイライト
+                        </Badge>
+                      )}
+                      {linkedEvent ? (
+                        <p className="text-sm flex items-center gap-2">
+                          <span className="font-medium">イベント:</span>
+                          <span>{linkedEvent.name}</span>
+                        </p>
+                      ) : card.event_id ? (
+                        <p className="text-sm">イベントID: {card.event_id}</p>
+                      ) : null}
+                      {linkedBooth ? (
+                        <p className="text-sm flex items-center gap-2">
+                          <span className="font-medium">ブース:</span>
+                          <span>{linkedBooth.name}</span>
+                        </p>
+                      ) : card.booth_id ? (
+                        <p className="text-sm">ブースID: {card.booth_id}</p>
+                      ) : null}
+                      {linkedBooth?.booth_code && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <MapPin className="w-3 h-3" /> {linkedBooth.booth_code}
+                        </p>
+                      )}
+                      {card.visit_notes && (
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                          {card.visit_notes}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -345,6 +395,32 @@ export default function CardDetailPage({ params }: { params: Promise<{ cardId: s
                     )}
                   </CardContent>
                 </Card>
+
+                {(meeting.booth_visit_memo || meeting.followup_tasks) && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>展示会フォロー項目</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {meeting.booth_visit_memo && (
+                        <div>
+                          <p className="text-sm font-semibold text-muted-foreground">ブース訪問メモ</p>
+                          <p className="text-sm whitespace-pre-wrap">{meeting.booth_visit_memo}</p>
+                        </div>
+                      )}
+                      {meeting.followup_tasks && meeting.followup_tasks.length > 0 && (
+                        <div>
+                          <p className="text-sm font-semibold text-muted-foreground">フォローアップタスク</p>
+                          <ul className="list-disc list-inside space-y-1">
+                            {meeting.followup_tasks.map((task, idx) => (
+                              <li key={`${task}-${idx}`}>{task}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
 
                 {meeting.memo && (
                   <Card>
