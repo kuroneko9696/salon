@@ -412,7 +412,7 @@ export default function CardDetailPage({ params }: { params: Promise<{ cardId: s
                         <div>
                           <p className="text-sm font-semibold text-muted-foreground">フォローアップタスク</p>
                           <ul className="list-disc list-inside space-y-1">
-                            {meeting.followup_tasks.map((task, idx) => (
+                            {meeting.followup_tasks.map((task: string, idx: number) => (
                               <li key={`${task}-${idx}`}>{task}</li>
                             ))}
                           </ul>
