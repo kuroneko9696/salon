@@ -5,7 +5,12 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
   CalendarRange,
+  CheckCircle2,
+  Circle,
   ClipboardList,
+  Download,
+  FileText,
+  Lightbulb,
   LogOut,
   MapPin,
   Plus,
@@ -309,36 +314,46 @@ export default function DashboardPage() {
           </Card>
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-3">
-          <Card className="xl:col-span-2">
-            <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-primary" />
-                  展示会タイムライン
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  イベントごとの進捗とクイックアクション。
-                </p>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {sortedEvents.length === 0 ? (
-                <div className="text-sm text-muted-foreground border rounded-md p-6 text-center">
-                  展示会がまだ登録されていません。まずはイベントを作成しましょう。
+        {/* 3フェーズワークフロー */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-primary" />
+            <h2 className="text-base font-semibold">展示会ワークフロー</h2>
+            <span className="text-sm text-muted-foreground">
+              - 3フェーズで進捗を管理
+            </span>
+          </div>
+
+          {sortedEvents.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center text-muted-foreground">
+                展示会がまだ登録されていません。まずはイベントを作成しましょう。
+                <div className="mt-4">
+                  <Button onClick={() => router.push('/events')}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    展示会を登録
+                  </Button>
                 </div>
-              ) : (
-                sortedEvents.map((event) => (
-                  <div
-                    key={event.event_id}
-                    className="border rounded-lg bg-white px-4 py-3 hover:border-primary/40 transition-colors"
-                  >
+              </CardContent>
+            </Card>
+          ) : (
+            sortedEvents.map((event) => {
+              const eventCards = businessCards.filter(c => c.event_id === event.event_id);
+              const eventNotes = visitNotes.filter(n => n.event_id === event.event_id);
+              const eventTargets = targetCompanies.filter(t => t.event_id === event.event_id);
+              const eventTasks = tasks.filter(t => t.event_id === event.event_id);
+              const completedTasks = eventTasks.filter(t => t.status === 'completed');
+
+              return (
+                <Card key={event.event_id} className="overflow-hidden">
+                  <CardHeader className="bg-gradient-to-r from-slate-50 to-white pb-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <p className="text-sm font-semibold">{event.name}</p>
-                        <p className="text-xs text-muted-foreground">
+                        <CardTitle className="text-lg">{event.name}</CardTitle>
+                        <p className="text-sm text-muted-foreground">
                           {event.start_date
                             ? new Date(event.start_date).toLocaleDateString('ja-JP', {
+                                year: 'numeric',
                                 month: 'short',
                                 day: 'numeric',
                               })
@@ -350,52 +365,186 @@ export default function DashboardPage() {
                                 day: 'numeric',
                               })
                             : '未設定'}
+                          {event.location && ` / ${event.location}`}
                         </p>
-                        {event.location && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            会場: {event.location}
-                          </p>
-                        )}
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      {event.highlight_tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {event.highlight_tags.slice(0, 3).map((tag) => (
+                            <Badge key={tag} variant="secondary">
+                              #{tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-4">
+                    <div className="grid gap-4 md:grid-cols-3">
+                      {/* フェーズ1: 展示会前 */}
+                      <div className="border rounded-lg p-4 bg-blue-50/50">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">
+                            1
+                          </div>
+                          <h3 className="font-semibold text-blue-900">展示会前</h3>
+                        </div>
+                        <ul className="space-y-2 text-sm mb-4">
+                          <li className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-green-500" />
+                            <span className="text-muted-foreground">展示会登録済み</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            {eventTargets.length > 0 ? (
+                              <CheckCircle2 className="w-4 h-4 text-green-500" />
+                            ) : (
+                              <Circle className="w-4 h-4 text-slate-300" />
+                            )}
+                            <span className={eventTargets.length > 0 ? 'text-muted-foreground' : ''}>
+                              ターゲット企業 ({eventTargets.length}社)
+                            </span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Circle className="w-4 h-4 text-slate-300" />
+                            <span>事前調査・ブース確認</span>
+                          </li>
+                        </ul>
                         <Button
                           variant="outline"
                           size="sm"
+                          className="w-full border-blue-200 hover:bg-blue-100"
                           onClick={() => router.push(`/events/${event.event_id}/preparation`)}
                         >
-                          事前準備
+                          事前準備へ
+                          <ArrowRight className="w-4 h-4 ml-2" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => router.push(`/events/${event.event_id}/active`)}
-                        >
-                          来場中
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => router.push(`/events/${event.event_id}/summary`)}
-                        >
-                          事後整理
-                        </Button>
+                      </div>
+
+                      {/* フェーズ2: 展示会中 */}
+                      <div className="border rounded-lg p-4 bg-amber-50/50">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold">
+                            2
+                          </div>
+                          <h3 className="font-semibold text-amber-900">展示会中</h3>
+                        </div>
+                        <ul className="space-y-2 text-sm mb-4">
+                          <li className="flex items-center gap-2">
+                            {eventCards.length > 0 ? (
+                              <CheckCircle2 className="w-4 h-4 text-green-500" />
+                            ) : (
+                              <Circle className="w-4 h-4 text-slate-300" />
+                            )}
+                            <span className={eventCards.length > 0 ? 'text-muted-foreground' : ''}>
+                              名刺交換 ({eventCards.length}枚)
+                            </span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            {eventNotes.length > 0 ? (
+                              <CheckCircle2 className="w-4 h-4 text-green-500" />
+                            ) : (
+                              <Circle className="w-4 h-4 text-slate-300" />
+                            )}
+                            <span className={eventNotes.length > 0 ? 'text-muted-foreground' : ''}>
+                              商談メモ ({eventNotes.length}件)
+                            </span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Lightbulb className="w-4 h-4 text-amber-500" />
+                            <span>プロダクト発見レポート</span>
+                          </li>
+                        </ul>
+                        <div className="space-y-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full border-amber-200 hover:bg-amber-100"
+                            onClick={() => router.push(`/events/${event.event_id}/active`)}
+                          >
+                            来場中メモ
+                            <ArrowRight className="w-4 h-4 ml-2" />
+                          </Button>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs"
+                              onClick={handleAddCard}
+                            >
+                              <Scan className="w-3 h-3 mr-1" />
+                              名刺
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs"
+                              onClick={() => router.push(`/events/${event.event_id}/discovery`)}
+                            >
+                              <Lightbulb className="w-3 h-3 mr-1" />
+                              発見
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* フェーズ3: 展示会後 */}
+                      <div className="border rounded-lg p-4 bg-emerald-50/50">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">
+                            3
+                          </div>
+                          <h3 className="font-semibold text-emerald-900">展示会後</h3>
+                        </div>
+                        <ul className="space-y-2 text-sm mb-4">
+                          <li className="flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-purple-500" />
+                            <span>AIディープリサーチ</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-emerald-500" />
+                            <span>レポート作成 (md)</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            {completedTasks.length > 0 ? (
+                              <CheckCircle2 className="w-4 h-4 text-green-500" />
+                            ) : (
+                              <Circle className="w-4 h-4 text-slate-300" />
+                            )}
+                            <span className={completedTasks.length > 0 ? 'text-muted-foreground' : ''}>
+                              タスク ({completedTasks.length}/{eventTasks.length}完了)
+                            </span>
+                          </li>
+                        </ul>
+                        <div className="space-y-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full border-emerald-200 hover:bg-emerald-100"
+                            onClick={() => router.push(`/events/${event.event_id}/summary`)}
+                          >
+                            サマリー・レポート
+                            <ArrowRight className="w-4 h-4 ml-2" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full text-xs"
+                            onClick={() => router.push(`/events/${event.event_id}/highlights`)}
+                          >
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            ハイライト一覧
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                    {event.highlight_tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {event.highlight_tags.map((tag) => (
-                          <Badge key={tag} variant="outline">
-                            #{tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
+        </section>
 
+        <section className="grid gap-4 xl:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">

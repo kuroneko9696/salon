@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   BarChart3,
+  Download,
   FileText,
   Loader2,
   RefreshCcw,
@@ -149,6 +150,144 @@ export default function EventSummaryPage({
     }
   };
 
+  const generateMarkdownReport = (): string => {
+    if (!event || !summary) return '';
+
+    const lines: string[] = [];
+
+    // ヘッダー
+    lines.push(`# ${event.name} - 展示会レポート`);
+    lines.push('');
+    lines.push(`**作成日時**: ${new Date().toLocaleString('ja-JP')}`);
+    lines.push('');
+
+    // 基本情報
+    lines.push('## 基本情報');
+    lines.push('');
+    if (event.start_date) {
+      lines.push(`- **開催期間**: ${new Date(event.start_date).toLocaleDateString('ja-JP')} 〜 ${event.end_date ? new Date(event.end_date).toLocaleDateString('ja-JP') : '未設定'}`);
+    }
+    if (event.location) {
+      lines.push(`- **会場**: ${event.location}`);
+    }
+    if (event.description) {
+      lines.push(`- **概要**: ${event.description}`);
+    }
+    if (event.highlight_tags.length > 0) {
+      lines.push(`- **タグ**: ${event.highlight_tags.map(t => `#${t}`).join(' ')}`);
+    }
+    lines.push('');
+
+    // KPIサマリー
+    lines.push('## KPIサマリー');
+    lines.push('');
+    lines.push('| 指標 | 値 |');
+    lines.push('|------|-----|');
+    Object.entries(summary.metrics).forEach(([key, value]) => {
+      lines.push(`| ${key.replace(/_/g, ' ')} | ${value} |`);
+    });
+    lines.push('');
+
+    // ハイライト企業
+    if (summary.highlights.highlight_companies.length > 0) {
+      lines.push('## ハイライト企業');
+      lines.push('');
+      summary.highlights.highlight_companies.forEach((company, idx) => {
+        lines.push(`### ${idx + 1}. ${company.name}`);
+        if (company.website_url) {
+          lines.push(`- **URL**: ${company.website_url}`);
+        }
+        if (company.booth_code) {
+          lines.push(`- **ブース**: ${company.booth_code}`);
+        }
+        lines.push(`- **優先度**: ${company.priority}`);
+        if (company.ai_research) {
+          lines.push('');
+          lines.push('**AI調査結果**:');
+          lines.push(company.ai_research);
+        }
+        lines.push('');
+      });
+    }
+
+    // ハイライトノート
+    if (summary.highlights.highlight_notes.length > 0) {
+      lines.push('## ハイライトノート');
+      lines.push('');
+      summary.highlights.highlight_notes.forEach((note) => {
+        lines.push(`### ${note.title || '(タイトルなし)'}`);
+        lines.push(`- **種別**: ${note.note_type}`);
+        lines.push(`- **記録日時**: ${new Date(note.created_at).toLocaleString('ja-JP')}`);
+        if (note.keywords.length > 0) {
+          lines.push(`- **キーワード**: ${note.keywords.map(k => `#${k}`).join(' ')}`);
+        }
+        lines.push('');
+        lines.push(note.content);
+        lines.push('');
+      });
+    }
+
+    // キーワードメモ
+    if (summary.keyword_notes.length > 0) {
+      lines.push('## キーワードメモ');
+      lines.push('');
+      summary.keyword_notes.forEach((keyword) => {
+        lines.push(`### ${keyword.keyword}`);
+        if (keyword.context) {
+          lines.push(`- **文脈**: ${keyword.context}`);
+        }
+        if (keyword.ai_suggestions.length > 0) {
+          lines.push('- **AI提案**:');
+          keyword.ai_suggestions.forEach((suggestion) => {
+            lines.push(`  - ${suggestion}`);
+          });
+        }
+        lines.push('');
+      });
+    }
+
+    // タスク
+    if (summary.highlights.pending_tasks.length > 0) {
+      lines.push('## 未完了タスク');
+      lines.push('');
+      lines.push('| タスク | ステータス | 担当者 | 期限 |');
+      lines.push('|--------|----------|--------|------|');
+      summary.highlights.pending_tasks.forEach((task) => {
+        lines.push(`| ${task.title} | ${task.status} | ${task.assigned_to || '-'} | ${task.due_date ? new Date(task.due_date).toLocaleDateString('ja-JP') : '-'} |`);
+      });
+      lines.push('');
+    }
+
+    // AIレポート（既存のものがあれば）
+    if (summary.last_report?.content) {
+      lines.push('## AIサマリーレポート');
+      lines.push('');
+      lines.push(summary.last_report.content);
+      lines.push('');
+    }
+
+    // フッター
+    lines.push('---');
+    lines.push('');
+    lines.push('*このレポートは展示会管理アプリによって自動生成されました。*');
+
+    return lines.join('\n');
+  };
+
+  const handleDownloadMarkdown = () => {
+    const markdown = generateMarkdownReport();
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const fileName = `${event?.name || 'report'}_${new Date().toISOString().split('T')[0]}.md`;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   if (!user || !eventId) {
     return null;
   }
@@ -195,6 +334,14 @@ export default function EventSummaryPage({
                   <Sparkles className="w-4 h-4 mr-2" /> レポート生成
                 </>
               )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleDownloadMarkdown}
+              disabled={!summary}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              MD出力
             </Button>
           </div>
         </div>
